@@ -1,1 +1,8 @@
 tema1/tests.zip
+tema1/client
+tema1/server
+tema1/*.o
+tema1/*svc*
+tema1/*xdr*
+tema1/*clnt*
+tema1/oauth.h
