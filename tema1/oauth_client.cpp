@@ -1,6 +1,6 @@
-#include <stdio.h> 
-#include <time.h> 
-#include <rpc/rpc.h> 
+#include <stdio.h>
+#include <time.h>
+#include <rpc/rpc.h>
 
 #include "oauth.h"
 #include "helpers.h"
@@ -10,7 +10,7 @@
 int main() {
     /* variabila clientului */
 	CLIENT *handle;
-	char *user_id = malloc(10);
+	char *user_id = (char *)malloc(10);
 	request_auth_response *response;
 
 	handle=clnt_create(
