@@ -2,6 +2,8 @@
 #include <time.h>
 #include <rpc/rpc.h>
 
+#include <iostream>
+
 #include "oauth.h"
 #include "helpers.h"
 
@@ -10,7 +12,7 @@
 int main() {
     /* variabila clientului */
 	CLIENT *handle;
-	char *user_id = (char *)malloc(10);
+	char *user_id = (char *)malloc(20);
 	request_auth_response *response;
 
 	handle=clnt_create(
@@ -24,10 +26,16 @@ int main() {
 		return -1;
 	}
 
-    strcpy(user_id, "toprea");
-
-	response = request_auth_1(&user_id, handle); 
-	printf( "The result is: %d %s\n", response->response_code, response->token);
+    strcpy(user_id, "X5B0TWjmeNtU3vd");
+	printf("aici 1\n");
+	response = request_auth_1(&user_id, handle);
+	printf("aici 2\n");
+	if (response->auth_token == NULL) {
+		printf("null\n");
+	}
+	else {
+		printf( "The result is: %d %s\n", response->response_code, response->auth_token);
+	}
 
     return 0;
 }
