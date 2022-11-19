@@ -17,6 +17,8 @@ int main(int argc, char **argv) {
 	request_auth_request request_auth_req;
 	approve_request_token_response *approve_request_token_resp;
 	approve_request_token_request approve_request_token_req;
+	request_access_response *request_access_resp;
+	request_access_request request_access_req;
 	FILE *client_actions;
 
 	handle=clnt_create(
@@ -75,6 +77,12 @@ int main(int argc, char **argv) {
 			}
 		}
 	}
+
+	request_access_req.auth_token = (char *)malloc((strlen("ceva") + 1) * sizeof(char));
+	strcpy(request_access_req.auth_token, "ceva");
+
+	request_access_resp = request_access_1(&request_access_req, handle);
+	printf("Received: %s, %d\n", request_access_resp->access_token, request_access_resp->response_code);
 
     return 0;
 }

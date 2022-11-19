@@ -17,6 +17,8 @@ request_auth_response *request_auth_1_svc(request_auth_request *request, struct 
     static request_auth_response response;
 	user *user_found = NULL;
 
+	printf("BEGIN %s AUTHZ\n", request->user_id);
+
 	for (auto &it : user_db) {
 		if (!strcmp(it.username, request->user_id)) {
 			user_found = &it;
@@ -24,14 +26,13 @@ request_auth_response *request_auth_1_svc(request_auth_request *request, struct 
 	}
 
 	if (user_found != NULL) {
-		printf("SERVER: FOUND USER\n");
 		response.response_code = USER_FOUND;
     	response.auth_token = generate_access_token(request->user_id);
 		user_found->auth_token = (char *)malloc((strlen(response.auth_token) + 1) * sizeof(char));
 		strcpy(user_found->auth_token, response.auth_token);
+		printf("  RequestToken = %s\n", response.auth_token);
 	}
 	else {
-		printf("SERVER: DID NOT FIND USER\n");
 		response.response_code = USER_NOT_FOUND;
     	response.auth_token = generate_empty_string();
 	}
@@ -41,12 +42,24 @@ request_auth_response *request_auth_1_svc(request_auth_request *request, struct 
 
 request_access_response *request_access_1_svc(request_access_request *request, struct svc_req *cl) {
     static request_access_response response;
+	user *user_found = NULL;
 
 	printf("SERVER:\n");
 
 	for (auto &it : user_db) {
 		printf("%s %ld\n", it.username, it.permissions.size());
 	}
+
+	for (auto &it : user_db) {
+		if (!strcmp(it.auth_token, request->auth_token)) {
+			user_found = &it;
+		}
+	}
+
+	response.access_token = (char *)malloc((strlen("salut") + 1) * sizeof(char));
+
+	strcpy(response.access_token, "salut");
+	response.response_code = REQUEST_DENIED;
 
 	return &response;
 }

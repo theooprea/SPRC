@@ -14,7 +14,6 @@ struct request_access_response {
 };
 
 struct request_access_request {
-	string user_id<>;
 	string auth_token<>;
 };
 
