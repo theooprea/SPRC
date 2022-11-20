@@ -26,6 +26,7 @@ request_auth_response *request_auth_1_svc(request_auth_request *request, struct 
 	for (auto &it : user_db) {
 		if (!strcmp(it.username, request->user_id)) {
 			user_found = &it;
+			break;
 		}
 	}
 
@@ -34,7 +35,13 @@ request_auth_response *request_auth_1_svc(request_auth_request *request, struct 
     	response.auth_token = generate_access_token(request->user_id);
 		user_found->auth_token = (char *)malloc((strlen(response.auth_token) + 1) * sizeof(char));
 		user_found->auto_renew = request->auto_renew == 1 ? true : false;
+
+		if (!user_found->auto_renew) {
+			user_found->renew_token = NULL;
+		}
+
 		strcpy(user_found->auth_token, response.auth_token);
+
 		printf("  RequestToken = %s\n", response.auth_token);
 	}
 	else {
@@ -52,6 +59,7 @@ request_access_response *request_access_1_svc(request_access_request *request, s
 	for (auto &it : user_db) {
 		if (it.auth_token && it.permissions.size() != 0 && !strcmp(it.auth_token, request->auth_token)) {
 			user_found = &it;
+			break;
 		}
 	}
 
@@ -68,15 +76,19 @@ request_access_response *request_access_1_svc(request_access_request *request, s
 		user_found->available_actions = token_availability;
 		response.response_code = REQUEST_APPROVED;
 
+		printf("  AccessToken = %s\n", response.access_token);
+
 		if (user_found->auto_renew) {
 			response.renew_token = generate_access_token(response.access_token);
+			user_found->renew_token = (char *)malloc((strlen(response.renew_token) + 1) * sizeof(char));
+			strcpy(user_found->renew_token, response.renew_token);
+
+			printf("  RefreshToken = %s\n", response.renew_token);
 		}
 		else {
 			response.renew_token = (char *)malloc(sizeof(char));
 			response.renew_token[0] = '\0';
 		}
-
-		printf("  AccessToken = %s\n", response.access_token);
 	}
 
 	return &response;
@@ -91,6 +103,7 @@ approve_request_token_response *approve_request_token_1_svc(approve_request_toke
 	for (auto &it : user_db) {
 		if (it.auth_token != NULL && !strcmp(it.auth_token, request->auth_token)) {
 			user_found = &it;
+			break;
 		}
 	}
 
@@ -162,19 +175,26 @@ validate_delegated_action_response *validate_delegated_action_1_svc(validate_del
 	for (auto &it : user_db) {
 		if (it.access_token != NULL && !strcmp(it.access_token, request->access_token)) {
 			user_found = &it;
+			break;
 		}
 	}
 
 	if (!user_found) {
 		response.response_code = PERMISSION_DENIED;
+		printf("DENY (%s,%s,,0)\n", request->op_type, request->resource);
 	}
 	else {
 		if (user_found->available_actions == 0) {
 			response.response_code = TOKEN_EXPIRED;
+			if (!user_found->auto_renew) {
+				printf("DENY (%s,%s,,0)\n", request->op_type, request->resource);
+			}
 		}
 		else {
 			if (std::find(resources.begin(), resources.end(), request->resource) == resources.end()) {
+				user_found->available_actions--;
 				response.response_code = RESOURCE_NOT_FOUND;
+				printf("DENY (%s,%s,%s,%d)\n", request->op_type, request->resource, user_found->access_token, user_found->available_actions);
 			}
 			else {
 				permission *permission_found = NULL;
@@ -185,17 +205,48 @@ validate_delegated_action_response *validate_delegated_action_1_svc(validate_del
 					}
 				}
 
+				user_found->available_actions--;
+
 				if (!permission_found || !check_permission(permission_found->permissions, request->op_type)) {
 					response.response_code = OPERATION_NOT_PERMITTED;
+					printf("DENY (%s,%s,%s,%d)\n", request->op_type, request->resource, user_found->access_token, user_found->available_actions);
 				}
 				else {
 					response.response_code = PERMISSION_GRANTED;
-				}
-				
-				user_found->available_actions = user_found->available_actions - 1;
+					printf("PERMIT (%s,%s,%s,%d)\n", request->op_type, request->resource, user_found->access_token, user_found->available_actions);
+				}				
 			}
 		}
 	}
+
+	return &response;
+}
+
+renew_token_response *renew_token_1_svc(renew_token_request *request,  struct svc_req *cl) {
+	static renew_token_response response;
+	user *user_found = NULL;
+
+	for (auto &it : user_db) {
+		if (it.renew_token != NULL && !strcmp(it.renew_token, request->renew_token)) {
+			user_found = &it;
+			break;
+		}
+	}
+
+	printf("BEGIN %s AUTHZ REFRESH\n", user_found->username);
+
+	response.access_token = generate_access_token(request->renew_token);
+	user_found->access_token = (char *)malloc((strlen(response.access_token) + 1) * sizeof(char));
+	strcpy(user_found->access_token, response.access_token);
+
+	user_found->available_actions = token_availability;
+	printf("  AccessToken = %s\n", response.access_token);
+
+	response.renew_token = generate_access_token(response.access_token);
+	user_found->renew_token = (char *)malloc((strlen(response.renew_token) + 1) * sizeof(char));
+	strcpy(user_found->renew_token, response.renew_token);
+
+	printf("  RefreshToken = %s\n", response.renew_token);
 
 	return &response;
 }

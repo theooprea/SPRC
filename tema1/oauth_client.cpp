@@ -23,6 +23,8 @@ int main(int argc, char **argv) {
 	request_access_request request_access_req;
 	validate_delegated_action_response *validate_delegated_action_resp;
 	validate_delegated_action_request validate_delegated_action_req;
+	renew_token_response *renew_token_resp;
+	renew_token_request renew_token_req;
 
 	FILE *client_actions;
 
@@ -157,7 +159,56 @@ int main(int argc, char **argv) {
 				printf("PERMISSION_DENIED\n");
 				break;
 			case TOKEN_EXPIRED:
-				printf("TOKEN_EXPIRED\n");
+				if (current_user->auto_renew) {
+					/* renew token */
+					renew_token_req.renew_token = (char *)malloc((strlen(current_user->renew_token) + 1) * sizeof(char));
+					strcpy(renew_token_req.renew_token, current_user->renew_token);
+
+					renew_token_resp = renew_token_1(&renew_token_req, handle);
+
+					current_user->access_token = (char *)malloc((strlen(renew_token_resp->access_token) + 1) * sizeof(char));
+					strcpy(current_user->access_token, renew_token_resp->access_token);
+
+					current_user->renew_token = (char *)malloc((strlen(renew_token_resp->renew_token) + 1) * sizeof(char));
+					strcpy(current_user->renew_token, renew_token_resp->renew_token);
+
+					/* retry attempt */
+					validate_delegated_action_req.access_token = (char *)malloc((strlen(current_user->access_token) + 1) * sizeof(char));
+					strcpy(validate_delegated_action_req.access_token, current_user->access_token);
+			
+					validate_delegated_action_req.op_type = (char *)malloc((strlen(action_type) + 1) * sizeof(char));
+					strcpy(validate_delegated_action_req.op_type, action_type);
+			
+					validate_delegated_action_req.resource = (char *)malloc((strlen(action_value) + 1) * sizeof(char));
+					strcpy(validate_delegated_action_req.resource, action_value);
+
+					validate_delegated_action_resp = validate_delegated_action_1(&validate_delegated_action_req, handle);
+				
+					/* show result */
+					switch (validate_delegated_action_resp->response_code)
+					{
+					case PERMISSION_DENIED:
+						printf("PERMISSION_DENIED\n");
+						break;
+					case TOKEN_EXPIRED:
+						printf("TOKEN_EXPIRED\n");
+						break;
+					case RESOURCE_NOT_FOUND:
+						printf("RESOURCE_NOT_FOUND\n");
+						break;
+					case OPERATION_NOT_PERMITTED:
+						printf("OPERATION_NOT_PERMITTED\n");
+						break;
+					case PERMISSION_GRANTED:
+						printf("PERMISSION_GRANTED\n");
+						break;
+					default:
+						break;
+					}
+				}
+				else {
+					printf("TOKEN_EXPIRED\n");
+				}
 				break;
 			case RESOURCE_NOT_FOUND:
 				printf("RESOURCE_NOT_FOUND\n");

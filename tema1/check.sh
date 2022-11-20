@@ -26,6 +26,7 @@ numberPattern='^[0-9]+$'
 if [[ $1 =~ $numberPattern ]]; then
     ./$SERVER_NAME $SERVER_PARAMS > server.out &
     SERVER_PID=$!
+    sleep 1
     ./$CLIENT_NAME $SERVER_ADDR $CLIENT_PARAMS > client.out
     kill $SERVER_PID
 
@@ -62,9 +63,12 @@ if [[ $1 =~ $numberPattern ]]; then
 else
     for i in {1..7}
     do
-        ./$SERVER_NAME $SERVER_PARAMS > server.out &
+        SERVER_PARAMS_ALL=${SERVER_PARAMS//testall/test$i}
+        CLIENT_PARAMS_ALL=${CLIENT_PARAMS//testall/test$i}
+        ./$SERVER_NAME $SERVER_PARAMS_ALL > server.out &
         SERVER_PID=$!
-        ./$CLIENT_NAME $SERVER_ADDR $CLIENT_PARAMS > client.out
+        sleep 1
+        ./$CLIENT_NAME $SERVER_ADDR $CLIENT_PARAMS_ALL > client.out
         kill $SERVER_PID
 
         diff server.out tests/test$i/expected_output/server.out > /dev/null
