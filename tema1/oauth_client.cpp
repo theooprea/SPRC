@@ -138,9 +138,7 @@ int main(int argc, char **argv) {
 				}
 			}
 		}
-		else if (!strcmp(action_type, "READ") || !strcmp(action_type, "INSERT") ||
-				 !strcmp(action_type, "MODIFY") || !strcmp(action_type, "DELETE") ||
-				 !strcmp(action_type, "EXECUTE")) {
+		else {
 
 			validate_delegated_action_req.access_token = (char *)malloc((strlen(current_user->access_token) + 1) * sizeof(char));
 			strcpy(validate_delegated_action_req.access_token, current_user->access_token);

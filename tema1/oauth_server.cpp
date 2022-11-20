@@ -143,6 +143,12 @@ approve_request_token_response *approve_request_token_1_svc(approve_request_toke
 
 bool check_permission(char *permissions, char *op_type) {
 	char search;
+
+	if (strcmp(op_type, "READ") && strcmp(op_type, "INSERT") &&
+		strcmp(op_type, "MODIFY") && strcmp(op_type, "DELETE") &&
+		strcmp(op_type, "EXECUTE")) {
+		return false;
+	}
 	
 	switch (op_type[0])
 	{
