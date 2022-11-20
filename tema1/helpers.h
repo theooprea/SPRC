@@ -38,6 +38,7 @@ struct user {
     int available_actions;
     char *renew_token;
     std::vector<permission> permissions;
+    bool auto_renew;
 };
 
 char *generate_empty_string() {

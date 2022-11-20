@@ -74,6 +74,7 @@ int main(int argc, char **argv) {
 			current_user->access_token[0] = '\0';
 			current_user->renew_token = (char *)malloc(sizeof(char));
 			current_user->renew_token[0] = '\0';
+			current_user->auto_renew = false;
 			
 			current_user->available_actions = 0;
 		}
@@ -85,6 +86,13 @@ int main(int argc, char **argv) {
 			request_auth_req.user_id = (char *)malloc((strlen(user_id) + 1) * sizeof(char));
 			strcpy(request_auth_req.user_id, user_id);
 			request_auth_req.auto_renew = atoi(action_value);
+
+			if (atoi(action_value) == 1) {
+				current_user->auto_renew = true;
+			}
+			else {
+				current_user->auto_renew = false;
+			}
 
 			request_auth_resp = request_auth_1(&request_auth_req, handle);
 
@@ -116,7 +124,15 @@ int main(int argc, char **argv) {
 					current_user->access_token = (char *)malloc((strlen(request_access_resp->access_token) + 1) * sizeof(char));
 					strcpy(current_user->access_token, request_access_resp->access_token);
 
-					printf("%s -> %s\n", request_auth_resp->auth_token, request_access_resp->access_token);
+					current_user->renew_token = (char *)malloc((strlen(request_access_resp->renew_token) + 1) * sizeof(char));
+					strcpy(current_user->renew_token, request_access_resp->renew_token);
+
+					if (current_user->auto_renew) {
+						printf("%s -> %s,%s\n", request_auth_resp->auth_token, request_access_resp->access_token, request_access_resp->renew_token);
+					}
+					else {
+						printf("%s -> %s\n", request_auth_resp->auth_token, request_access_resp->access_token);
+					}
 				}
 			}
 		}

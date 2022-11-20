@@ -11,6 +11,7 @@ struct request_auth_request {
 struct request_access_response {
 	int response_code;
 	string access_token<>;
+	string renew_token<>;
 };
 
 struct request_access_request {

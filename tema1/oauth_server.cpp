@@ -33,6 +33,7 @@ request_auth_response *request_auth_1_svc(request_auth_request *request, struct 
 		response.response_code = USER_FOUND;
     	response.auth_token = generate_access_token(request->user_id);
 		user_found->auth_token = (char *)malloc((strlen(response.auth_token) + 1) * sizeof(char));
+		user_found->auto_renew = request->auto_renew == 1 ? true : false;
 		strcpy(user_found->auth_token, response.auth_token);
 		printf("  RequestToken = %s\n", response.auth_token);
 	}
@@ -66,6 +67,14 @@ request_access_response *request_access_1_svc(request_access_request *request, s
 		strcpy(user_found->access_token, response.access_token);
 		user_found->available_actions = token_availability;
 		response.response_code = REQUEST_APPROVED;
+
+		if (user_found->auto_renew) {
+			response.renew_token = generate_access_token(response.access_token);
+		}
+		else {
+			response.renew_token = (char *)malloc(sizeof(char));
+			response.renew_token[0] = '\0';
+		}
 
 		printf("  AccessToken = %s\n", response.access_token);
 	}
@@ -251,7 +260,7 @@ int main (int argc, char **argv)
 		user_db[i].access_token = NULL;
 		user_db[i].renew_token = NULL;
 		user_db[i].available_actions = 0;
-
+		user_db[i].auto_renew = false;
 
 		user_db[i].permissions.clear();
 	}
