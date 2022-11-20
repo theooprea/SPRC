@@ -3,7 +3,9 @@
 #include <rpc/rpc.h>
 
 #include <iostream>
+#include <algorithm>
 #include <vector>
+#include <string>
 
 #include "oauth.h"
 #include "oauth_svc.h"
@@ -11,7 +13,9 @@
 #include "token.h"
 
 std::vector<user> user_db;
-FILE *approvals;
+std::vector<std::string> resources;
+FILE *approvals_file;
+int token_availability;
 
 request_auth_response *request_auth_1_svc(request_auth_request *request, struct svc_req *cl) {
     static request_auth_response response;
@@ -44,22 +48,27 @@ request_access_response *request_access_1_svc(request_access_request *request, s
     static request_access_response response;
 	user *user_found = NULL;
 
-	printf("SERVER:\n");
-
 	for (auto &it : user_db) {
-		printf("%s %ld\n", it.username, it.permissions.size());
-	}
-
-	for (auto &it : user_db) {
-		if (!strcmp(it.auth_token, request->auth_token)) {
+		if (it.auth_token && it.permissions.size() != 0 && !strcmp(it.auth_token, request->auth_token)) {
 			user_found = &it;
 		}
 	}
 
-	response.access_token = (char *)malloc((strlen("salut") + 1) * sizeof(char));
+	if (!user_found) {
+		response.access_token = (char *)malloc((strlen(request->auth_token) + 1) * sizeof(char));
 
-	strcpy(response.access_token, "salut");
-	response.response_code = REQUEST_DENIED;
+		strcpy(response.access_token, request->auth_token);
+		response.response_code = REQUEST_DENIED;
+	}
+	else {
+		response.access_token = generate_access_token(request->auth_token);
+		user_found->access_token = (char *)malloc((strlen(response.access_token) + 1) * sizeof(char));
+		strcpy(user_found->access_token, response.access_token);
+		user_found->available_actions = token_availability;
+		response.response_code = REQUEST_APPROVED;
+
+		printf("  AccessToken = %s\n", response.access_token);
+	}
 
 	return &response;
 }
@@ -67,7 +76,7 @@ request_access_response *request_access_1_svc(request_access_request *request, s
 approve_request_token_response *approve_request_token_1_svc(approve_request_token_request *request, struct svc_req *cl) {
 	static approve_request_token_response response;
 	user *user_found = NULL;
-	char buffer[1024], *p;
+	char buffer[1024], *p, *r;
 	permission permission_aux;
 
 	for (auto &it : user_db) {
@@ -78,15 +87,15 @@ approve_request_token_response *approve_request_token_1_svc(approve_request_toke
 
 	user_found->permissions.clear();
 
-	fgets(buffer, 1024, approvals);
+	r = fgets(buffer, 1024, approvals_file);
 	if (buffer[strlen(buffer) - 1] == '\n') {
 		buffer[strlen(buffer) - 1] = '\0';
 	}
 
-	if (!strcmp(buffer, "*,-")) {
+	if (!strcmp(buffer, "*,-") || !r) {
 		response.auth_token = (char *)malloc((strlen(request->auth_token) + 1) * sizeof(char));
 		strcpy(response.auth_token, request->auth_token);
-		response.approved = DENIED;
+		response.response_code = DENIED;
 	}
 	else {
 		p = strtok(buffer, ",");
@@ -104,7 +113,79 @@ approve_request_token_response *approve_request_token_1_svc(approve_request_toke
 
 		response.auth_token = (char *)malloc((strlen(request->auth_token) + 1) * sizeof(char));
 		strcpy(response.auth_token, request->auth_token);
-		response.approved = APPROVED;
+		response.response_code = APPROVED;
+	}
+
+	return &response;
+}
+
+bool check_permission(char *permissions, char *op_type) {
+	char search;
+	
+	switch (op_type[0])
+	{
+	case 'R':
+		search = 'R';
+		break;
+	case 'I':
+		search = 'I';
+		break;
+	case 'M':
+		search = 'M';
+		break;
+	case 'D':
+		search = 'D';
+		break;
+	case 'E':
+		search = 'X';
+		break;
+	default:
+		break;
+	}
+
+	return strchr(permissions, search);
+}
+
+validate_delegated_action_response *validate_delegated_action_1_svc(validate_delegated_action_request *request, struct svc_req *cl) {
+	static validate_delegated_action_response response;
+	user *user_found = NULL;
+
+	for (auto &it : user_db) {
+		if (it.access_token != NULL && !strcmp(it.access_token, request->access_token)) {
+			user_found = &it;
+		}
+	}
+
+	if (!user_found) {
+		response.response_code = PERMISSION_DENIED;
+	}
+	else {
+		if (user_found->available_actions == 0) {
+			response.response_code = TOKEN_EXPIRED;
+		}
+		else {
+			if (std::find(resources.begin(), resources.end(), request->resource) == resources.end()) {
+				response.response_code = RESOURCE_NOT_FOUND;
+			}
+			else {
+				permission *permission_found = NULL;
+
+				for (auto &it : user_found->permissions) {
+					if (!strcmp(it.resource, request->resource)) {
+						permission_found = &it;
+					}
+				}
+
+				if (!permission_found || !check_permission(permission_found->permissions, request->op_type)) {
+					response.response_code = OPERATION_NOT_PERMITTED;
+				}
+				else {
+					response.response_code = PERMISSION_GRANTED;
+				}
+				
+				user_found->available_actions = user_found->available_actions - 1;
+			}
+		}
 	}
 
 	return &response;
@@ -113,8 +194,8 @@ approve_request_token_response *approve_request_token_1_svc(approve_request_toke
 int main (int argc, char **argv)
 {
 	register SVCXPRT *transp;
-	int i, nr_clients;
-	FILE *clients_file;
+	int i, nr_clients, nr_resources;
+	FILE *clients_file, *resources_file;
 	char buffer[256];
 
 	pmap_unset (SERVER, SERVERVERSION);
@@ -140,7 +221,7 @@ int main (int argc, char **argv)
 	}
 
 	/* verify arguments */
-	if (argc != 4) {
+	if (argc != 5) {
 		fprintf (stderr, "%s", "Wrong number of arguments. Usage: ");
 		fprintf (stderr, "%s", "./server <clients_file> <resource_file> <approvals_file> <token availability>\n");
 		exit(1);
@@ -148,6 +229,12 @@ int main (int argc, char **argv)
 
 	/* populate user DB */
 	clients_file = fopen(argv[1], "r");
+	
+	if (!clients_file) {
+		printf("No clients file found: %s\n", argv[2]);
+		exit(1);
+	}
+
 	fscanf(clients_file, "%d\n", &nr_clients);
 	for (i = 0; i < nr_clients; i++) {
 		fgets(buffer, 256, clients_file);
@@ -164,14 +251,39 @@ int main (int argc, char **argv)
 		user_db[i].access_token = NULL;
 		user_db[i].renew_token = NULL;
 		user_db[i].available_actions = 0;
+
+
+		user_db[i].permissions.clear();
 	}
 
-	for (auto &it : user_db) {
-		it.permissions.clear();
+	/* read available resources */
+	resources_file = fopen(argv[2], "r");
+
+	if (!resources_file) {
+		printf("No resource file found: %s\n", argv[2]);
+		exit(1);
+	}
+
+	fscanf(resources_file, "%d\n", &nr_resources);
+	for (i = 0; i < nr_resources; i++) {
+		fgets(buffer, 256, resources_file);
+		if (buffer[strlen(buffer) - 1] == '\n') {
+			buffer[strlen(buffer) - 1] = '\0';
+		}
+
+		resources.push_back(std::string(buffer));
 	}
 
 	/* open approvals file */
-	approvals = fopen(argv[3], "r");
+	approvals_file = fopen(argv[3], "r");
+
+	if (!approvals_file) {
+		printf("No approvals file found: %s\n", argv[3]);
+		exit(1);
+	}
+
+	/* token availability */
+	token_availability = atoi(argv[4]);
 
 	svc_run ();
 	fprintf (stderr, "%s", "svc_run returned");

@@ -7,6 +7,8 @@
 #include "oauth.h"
 #include "helpers.h"
 
+std::vector<user> user_db;
+
 #define RMACHINE "localhost"
 
 int main(int argc, char **argv) {
@@ -19,6 +21,9 @@ int main(int argc, char **argv) {
 	approve_request_token_request approve_request_token_req;
 	request_access_response *request_access_resp;
 	request_access_request request_access_req;
+	validate_delegated_action_response *validate_delegated_action_resp;
+	validate_delegated_action_request validate_delegated_action_req;
+
 	FILE *client_actions;
 
 	handle=clnt_create(
@@ -49,7 +54,29 @@ int main(int argc, char **argv) {
 		action_type = strtok(NULL, ",");
 		action_value = strtok(NULL, ",");
 
-		printf("%s %s %s\n", user_id, action_type, action_value);
+		user *current_user = NULL;
+		for (auto &it : user_db) {
+			if (!strcmp(it.username, user_id)) {
+				current_user = &it;
+			}
+		}
+		if (current_user == NULL) {
+			user_db.push_back(user());
+
+			current_user = &(user_db.back());
+
+			current_user->username = (char *)malloc((strlen(user_id) + 1) * sizeof(char));
+			strcpy(current_user->username, user_id);
+
+			current_user->auth_token = (char *)malloc(sizeof(char));
+			current_user->auth_token[0] = '\0';
+			current_user->access_token = (char *)malloc(sizeof(char));
+			current_user->access_token[0] = '\0';
+			current_user->renew_token = (char *)malloc(sizeof(char));
+			current_user->renew_token[0] = '\0';
+			
+			current_user->available_actions = 0;
+		}
 
 		if (!strcmp(action_type, "REQUEST")) {
 			request_auth_req.user_id = NULL;
@@ -65,24 +92,71 @@ int main(int argc, char **argv) {
 				printf("USER_NOT_FOUND\n");
 			}
 			else {
-				printf("%s %s %d\n", request_auth_req.user_id, request_auth_resp->auth_token, request_auth_resp->response_code);
+				/* save resp data into database */
+				current_user->auth_token = (char *)malloc((strlen(request_auth_resp->auth_token) + 1) * sizeof(char));
+				strcpy(current_user->auth_token, request_auth_resp->auth_token);
 
+				/* approve client request */
 				approve_request_token_req.auth_token = NULL;
-				approve_request_token_req.auth_token = (char *)malloc((strlen(request_auth_resp->auth_token) + 1) * sizeof(char));
-				strcpy(approve_request_token_req.auth_token, request_auth_resp->auth_token);
+				approve_request_token_req.auth_token = (char *)malloc((strlen(current_user->auth_token) + 1) * sizeof(char));
+				strcpy(approve_request_token_req.auth_token, current_user->auth_token);
 
 				approve_request_token_resp = approve_request_token_1(&approve_request_token_req, handle);
 
-				printf("%s %d\n", approve_request_token_resp->auth_token, approve_request_token_resp->approved);
+				/* access request */
+				request_access_req.auth_token = (char *)malloc((strlen(current_user->auth_token) + 1) * sizeof(char));
+				strcpy(request_access_req.auth_token, current_user->auth_token);
+
+				request_access_resp = request_access_1(&request_access_req, handle);
+
+				if (request_access_resp->response_code == REQUEST_DENIED) {
+					printf("REQUEST_DENIED\n");
+				}
+				else {
+					current_user->access_token = (char *)malloc((strlen(request_access_resp->access_token) + 1) * sizeof(char));
+					strcpy(current_user->access_token, request_access_resp->access_token);
+
+					printf("%s -> %s\n", request_auth_resp->auth_token, request_access_resp->access_token);
+				}
+			}
+		}
+		else if (!strcmp(action_type, "READ") || !strcmp(action_type, "INSERT") ||
+				 !strcmp(action_type, "MODIFY") || !strcmp(action_type, "DELETE") ||
+				 !strcmp(action_type, "EXECUTE")) {
+
+			validate_delegated_action_req.access_token = (char *)malloc((strlen(current_user->access_token) + 1) * sizeof(char));
+			strcpy(validate_delegated_action_req.access_token, current_user->access_token);
+			
+			validate_delegated_action_req.op_type = (char *)malloc((strlen(action_type) + 1) * sizeof(char));
+			strcpy(validate_delegated_action_req.op_type, action_type);
+			
+			validate_delegated_action_req.resource = (char *)malloc((strlen(action_value) + 1) * sizeof(char));
+			strcpy(validate_delegated_action_req.resource, action_value);
+
+			validate_delegated_action_resp = validate_delegated_action_1(&validate_delegated_action_req, handle);
+
+			switch (validate_delegated_action_resp->response_code)
+			{
+			case PERMISSION_DENIED:
+				printf("PERMISSION_DENIED\n");
+				break;
+			case TOKEN_EXPIRED:
+				printf("TOKEN_EXPIRED\n");
+				break;
+			case RESOURCE_NOT_FOUND:
+				printf("RESOURCE_NOT_FOUND\n");
+				break;
+			case OPERATION_NOT_PERMITTED:
+				printf("OPERATION_NOT_PERMITTED\n");
+				break;
+			case PERMISSION_GRANTED:
+				printf("PERMISSION_GRANTED\n");
+				break;
+			default:
+				break;
 			}
 		}
 	}
-
-	request_access_req.auth_token = (char *)malloc((strlen("ceva") + 1) * sizeof(char));
-	strcpy(request_access_req.auth_token, "ceva");
-
-	request_access_resp = request_access_1(&request_access_req, handle);
-	printf("Received: %s, %d\n", request_access_resp->access_token, request_access_resp->response_code);
 
     return 0;
 }
