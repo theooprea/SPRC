@@ -156,30 +156,38 @@ approve_request_token_response *approve_request_token_1_svc(approve_request_toke
 	/* clear the permisions of the "possibly" already existing token*/
 	user_found->permissions.clear();
 
+	/* consumes a line from the approvals file and normalizes it */
 	r = fgets(buffer, 1024, approvals_file);
 	if (buffer[strlen(buffer) - 1] == '\n') {
 		buffer[strlen(buffer) - 1] = '\0';
 	}
 
+	/* request denied */
 	if (!strcmp(buffer, "*,-") || !r) {
 		response.auth_token = (char *)malloc((strlen(request->auth_token) + 1) * sizeof(char));
 		strcpy(response.auth_token, request->auth_token);
 		response.response_code = DENIED;
 	}
+	/* request approved */
 	else {
+		/* break lines into items, since it's a comma sepparated values - file*/
 		p = strtok(buffer, ",");
 
 		while (p != NULL) {
+			/* set the resource */
 			permission_aux.resource = (char *)malloc((strlen(p) + 1) * sizeof(char));
 			strcpy(permission_aux.resource, p);
+			/* set the permissions for that resource */
 			p = strtok(NULL, ",");
 			strcpy(permission_aux.permissions, p);
 
+			/* add the resource - permissions pair in the permissions array for the current user */
 			user_found->permissions.push_back(permission_aux);
 
 			p = strtok(NULL, ",");
 		}
 
+		/* set the response data */
 		response.auth_token = (char *)malloc((strlen(request->auth_token) + 1) * sizeof(char));
 		strcpy(response.auth_token, request->auth_token);
 		response.response_code = APPROVED;
@@ -188,15 +196,25 @@ approve_request_token_response *approve_request_token_1_svc(approve_request_toke
 	return &response;
 }
 
+/**
+ * @brief Checks whether the array of permissions, allows an operation
+ *
+ * @param permissions An array that contains items like RIMDX
+ * @param op_type The action that has to be checked, Read, Insert, etc
+ * @return true If the array of permissions allows the operation
+ * @return false Otherwise
+ */
 bool check_permission(char *permissions, char *op_type) {
 	char search;
 
+	/* if the operation is not among the following ones, don't allow it */
 	if (strcmp(op_type, "READ") && strcmp(op_type, "INSERT") &&
 		strcmp(op_type, "MODIFY") && strcmp(op_type, "DELETE") &&
 		strcmp(op_type, "EXECUTE")) {
 		return false;
 	}
-	
+
+	/* check the first char of the operation, Execute is the only exception*/
 	switch (op_type[0])
 	{
 	case 'R':
@@ -221,10 +239,20 @@ bool check_permission(char *permissions, char *op_type) {
 	return strchr(permissions, search);
 }
 
+/**
+ * @brief Server function that validates an action to a resource
+ *
+ * @param request The body of the request, containing the access token, the resource
+ * to which the request is being made, and the action that is wanted
+ * @param cl The client
+ * @return validate_delegated_action_response* The response of the server, whether
+ * or not the request is allowed, and if not, the reason why
+ */
 validate_delegated_action_response *validate_delegated_action_1_svc(validate_delegated_action_request *request, struct svc_req *cl) {
 	static validate_delegated_action_response response;
 	user *user_found = NULL;
 
+	/* find the user whose access token is attached to the request */
 	for (auto &it : user_db) {
 		if (it.access_token != NULL && !strcmp(it.access_token, request->access_token)) {
 			user_found = &it;
@@ -232,38 +260,51 @@ validate_delegated_action_response *validate_delegated_action_1_svc(validate_del
 		}
 	}
 
+	/* if the user is not found */
 	if (!user_found) {
 		response.response_code = PERMISSION_DENIED;
 		printf("DENY (%s,%s,,0)\n", request->op_type, request->resource);
 	}
+	/* if the user is found */
 	else {
+		/* if the user has no more available actions */
 		if (user_found->available_actions == 0) {
 			response.response_code = TOKEN_EXPIRED;
+			/* if the user isn't on auto renew, show the denial */
 			if (!user_found->auto_renew) {
 				printf("DENY (%s,%s,,0)\n", request->op_type, request->resource);
 			}
 		}
 		else {
+			/* if the resource doesn't exist */
 			if (std::find(resources.begin(), resources.end(), request->resource) == resources.end()) {
 				user_found->available_actions--;
 				response.response_code = RESOURCE_NOT_FOUND;
 				printf("DENY (%s,%s,%s,%d)\n", request->op_type, request->resource, user_found->access_token, user_found->available_actions);
 			}
+			/* if the resource exists */
 			else {
 				permission *permission_found = NULL;
 
+				/* find the permission associated to the resource */
 				for (auto &it : user_found->permissions) {
 					if (!strcmp(it.resource, request->resource)) {
 						permission_found = &it;
+						break;
 					}
 				}
 
+				/* decrease the number of available actions for the user */
 				user_found->available_actions--;
 
+				/* if there was no permission par found for the requested resource of the permission pair
+				 * doesn't allow the requested operation, deny it
+				 */
 				if (!permission_found || !check_permission(permission_found->permissions, request->op_type)) {
 					response.response_code = OPERATION_NOT_PERMITTED;
 					printf("DENY (%s,%s,%s,%d)\n", request->op_type, request->resource, user_found->access_token, user_found->available_actions);
 				}
+				/* otherwise, allow it */
 				else {
 					response.response_code = PERMISSION_GRANTED;
 					printf("PERMIT (%s,%s,%s,%d)\n", request->op_type, request->resource, user_found->access_token, user_found->available_actions);
@@ -275,10 +316,19 @@ validate_delegated_action_response *validate_delegated_action_1_svc(validate_del
 	return &response;
 }
 
+/**
+ * @brief Server function that refreshes a token
+ *
+ * @param request The body of the request, containing the refresh token
+ * @param cl The client
+ * @return renew_token_response* The response of the server, containing the newly
+ * generated access and refresh tokens
+ */
 renew_token_response *renew_token_1_svc(renew_token_request *request,  struct svc_req *cl) {
 	static renew_token_response response;
 	user *user_found = NULL;
 
+	/* find the user whose refresh token matches the one in the request */
 	for (auto &it : user_db) {
 		if (it.renew_token != NULL && !strcmp(it.renew_token, request->renew_token)) {
 			user_found = &it;
@@ -288,6 +338,7 @@ renew_token_response *renew_token_1_svc(renew_token_request *request,  struct sv
 
 	printf("BEGIN %s AUTHZ REFRESH\n", user_found->username);
 
+	/* generate a new access token */
 	response.access_token = generate_access_token(request->renew_token);
 	user_found->access_token = (char *)malloc((strlen(response.access_token) + 1) * sizeof(char));
 	strcpy(user_found->access_token, response.access_token);
@@ -295,6 +346,7 @@ renew_token_response *renew_token_1_svc(renew_token_request *request,  struct sv
 	user_found->available_actions = token_availability;
 	printf("  AccessToken = %s\n", response.access_token);
 
+	/* generate a new refresh token */
 	response.renew_token = generate_access_token(response.access_token);
 	user_found->renew_token = (char *)malloc((strlen(response.renew_token) + 1) * sizeof(char));
 	strcpy(user_found->renew_token, response.renew_token);

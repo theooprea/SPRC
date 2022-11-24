@@ -1,0 +1,106 @@
+Oprea Theodor-Alin - 341C1 - OAuth - SPRC
+Time to implement - ~15-20 hours
+
+------ Workflow ------
+
+The app consists of 2 components, the client and the server. The server is
+started and parses the files given as arguments and populates the databases.
+The client is then started and simulates the requests as described by the
+commands in the client.in file. The user can perform 2 different main actions,
+either request an access token, or use the said token to make an action on a
+resource.
+
+A typical workflow is as follows:
+- client makes an auth request, gets an auth token
+- client sens auth token to end user, which approves (and provides a set of
+permissions over the resources) or denies the request
+- client uses the same auth token, tied to permissions (or not if denied) in
+the server, to request an access token. If the auth token was approved, an
+access token is generated and sent to the user. If the client has opted for
+auto renewal of the tokens, a refresh token is also generated.
+- client uses the access token to access resources, which according to the
+provided permissions, can be approved or not.
+- whenever the client runs out of actions, if they opted for auto renewal of
+the tokens, it makes a request for new tokens.
+
+
+------ Project Structure ------
+.
+├── Makefile
+├── check.sh
+├── helpers.h
+├── oauth.x
+├── oauth_client.cpp
+├── oauth_server.cpp
+├── tests
+└── token.h
+
+Makefile - used to build the project
+check.sh - script to check the functionality of the project
+helpers.h - defines the user and resources stuctures, and the constants used
+in the project
+oauth.x - defines the interface used by the client and the server, contains
+the definitions of the exposed functions, and the used structures
+oauth_client.cpp - defines the behavior of the client
+oauth_server.cpp - defines the functionalities of the server, auth and resource
+access
+tests - tests suite to check the functionality of the project
+token.h - exposes the function to generate the tokens
+
+
+------ Interface Specifications ------
+
+The project exposes 5 main functions:
+- request_auth
+- request_access
+- approve_request_token
+- validate_delegated_action
+- renew_token
+
+Each function uses 2 own structures, one for the request payload and one for
+the response payload. The structures are as follows:
+
+- request_auth_request:
+	- the id of the user as string
+	- whether the user want auto renew or not, as int (0 - no, 1 - yes)
+- request_auth_response:
+	- the auth token as string
+	- the response code as int (0 - failure, 1 - success)
+- request_access_request:
+	- the auth token as string
+- request_access_response:
+	- the access token as string
+	- the refresh token as string (optional)
+	- the response code as int (0 - failure, 1 - success)
+- approve_request_token_request:
+	- the auth token as string
+- approve_request_token_response:
+	- the auth token as string
+- validate_delegated_action_request:
+	- the access token as string
+	- the resource to be accessed as string
+	- the operation to be performed as string
+- validate_delegated_action_response:
+	- the response code as int, approved/denied and if denies, the reason
+- renew_token_request:
+	- the refresh token as string
+- renew_token_response:
+	- the newly generated access token as string
+	- the newly generated refresh token as string
+
+
+------ Checker ------
+
+To check the app, simply use `make` to compile the sources and the use
+`./check.sh all` to run all the tests. The check script was slightly modified
+to do the following things:
+- parse the readme file (or default to 0) to extract the availability of the
+token and pass that value to the server as a CLI argument
+- refactor the expected outputs to containt an ending newline to be easier to
+verify the app
+
+Quick setup and check:
+
+make clean && make
+./check.sh all
+
