@@ -103,4 +103,3 @@ Quick setup and check:
 
 make clean && make
 ./check.sh all
-
