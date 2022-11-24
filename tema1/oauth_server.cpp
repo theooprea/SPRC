@@ -12,17 +12,30 @@
 #include "helpers.h"
 #include "token.h"
 
+/* the user DB, the resources DB, the approvals file from which the end-user
+ * will approve/deny requests, and the availability of a newly generated token
+ */
 std::vector<user> user_db;
 std::vector<std::string> resources;
 FILE *approvals_file;
 int token_availability;
 
+/**
+ * @brief Server function that handles the authorisation request
+ *
+ * @param request The body of the request, containing the username and whether the
+ * token has to be automatically generated
+ * @param cl The client
+ * @return request_auth_response* The response of the server, containing the auth
+ * token and the return code
+ */
 request_auth_response *request_auth_1_svc(request_auth_request *request, struct svc_req *cl) {
     static request_auth_response response;
 	user *user_found = NULL;
 
 	printf("BEGIN %s AUTHZ\n", request->user_id);
 
+	/* try to find the username in the database */
 	for (auto &it : user_db) {
 		if (!strcmp(it.username, request->user_id)) {
 			user_found = &it;
@@ -30,7 +43,11 @@ request_auth_response *request_auth_1_svc(request_auth_request *request, struct 
 		}
 	}
 
+	/* if the user was found */
 	if (user_found != NULL) {
+		/* set the response code, generate a token based on the user id, and set
+		 * a flag in the DB for token auto renewal
+		 */
 		response.response_code = USER_FOUND;
     	response.auth_token = generate_access_token(request->user_id);
 		user_found->auth_token = (char *)malloc((strlen(response.auth_token) + 1) * sizeof(char));
@@ -40,11 +57,14 @@ request_auth_response *request_auth_1_svc(request_auth_request *request, struct 
 			user_found->renew_token = NULL;
 		}
 
+		/* save the token in the database */
 		strcpy(user_found->auth_token, response.auth_token);
 
 		printf("  RequestToken = %s\n", response.auth_token);
 	}
+	/* if the user was not found */
 	else {
+		/* set response code and an empty token */
 		response.response_code = USER_NOT_FOUND;
     	response.auth_token = generate_empty_string();
 	}
@@ -52,10 +72,22 @@ request_auth_response *request_auth_1_svc(request_auth_request *request, struct 
 	return &response;
 }
 
+/**
+ * @brief Server function that generates the access token for a user, if the request
+ * has been approved
+ *
+ * @param request The body of the request, containing the auth token
+ * @param cl The client
+ * @return request_access_response* The response of the server, containing the access token,
+ * and if the user has opted for token auto renewal, a refresh token
+ */
 request_access_response *request_access_1_svc(request_access_request *request, struct svc_req *cl) {
     static request_access_response response;
 	user *user_found = NULL;
 
+	/* try to find the user whose auth token matches the auth token in the request,
+	 * and check if the auth token has been marked as approved
+	 */
 	for (auto &it : user_db) {
 		if (it.auth_token && it.permissions.size() != 0 && !strcmp(it.auth_token, request->auth_token)) {
 			user_found = &it;
@@ -63,13 +95,17 @@ request_access_response *request_access_1_svc(request_access_request *request, s
 		}
 	}
 
+	/* if the user was not found */
 	if (!user_found) {
+		/* return the token as it is and deny the request */
 		response.access_token = (char *)malloc((strlen(request->auth_token) + 1) * sizeof(char));
 
 		strcpy(response.access_token, request->auth_token);
 		response.response_code = REQUEST_DENIED;
 	}
+	/* if the user was found */
 	else {
+		/* generate an access token and save it in the DB*/
 		response.access_token = generate_access_token(request->auth_token);
 		user_found->access_token = (char *)malloc((strlen(response.access_token) + 1) * sizeof(char));
 		strcpy(user_found->access_token, response.access_token);
@@ -78,6 +114,7 @@ request_access_response *request_access_1_svc(request_access_request *request, s
 
 		printf("  AccessToken = %s\n", response.access_token);
 
+		/* if the user opted for auto renewal, generate a refresh token */
 		if (user_found->auto_renew) {
 			response.renew_token = generate_access_token(response.access_token);
 			user_found->renew_token = (char *)malloc((strlen(response.renew_token) + 1) * sizeof(char));
@@ -94,12 +131,21 @@ request_access_response *request_access_1_svc(request_access_request *request, s
 	return &response;
 }
 
+/**
+ * @brief Server function that marks a request as approved or denied
+ *
+ * @param request The body of the request, containing the auth token
+ * @param cl The client
+ * @return approve_request_token_response* The response of the server, containing the auth_token,
+ * and the response code
+ */
 approve_request_token_response *approve_request_token_1_svc(approve_request_token_request *request, struct svc_req *cl) {
 	static approve_request_token_response response;
 	user *user_found = NULL;
 	char buffer[1024], *p, *r;
 	permission permission_aux;
 
+	/* try to find the user */
 	for (auto &it : user_db) {
 		if (it.auth_token != NULL && !strcmp(it.auth_token, request->auth_token)) {
 			user_found = &it;
@@ -107,6 +153,7 @@ approve_request_token_response *approve_request_token_1_svc(approve_request_toke
 		}
 	}
 
+	/* clear the permisions of the "possibly" already existing token*/
 	user_found->permissions.clear();
 
 	r = fgets(buffer, 1024, approvals_file);
@@ -286,21 +333,23 @@ int main (int argc, char **argv)
 		exit(1);
 	}
 
-	/* verify arguments */
+	/* verify the number of arguments */
 	if (argc != 5) {
 		fprintf (stderr, "%s", "Wrong number of arguments. Usage: ");
 		fprintf (stderr, "%s", "./server <clients_file> <resource_file> <approvals_file> <token availability>\n");
 		exit(1);
 	}
 
-	/* populate user DB */
+	/* populate the user DB */
 	clients_file = fopen(argv[1], "r");
-	
+
+	/* if the provided file does not exist */
 	if (!clients_file) {
 		printf("No clients file found: %s\n", argv[2]);
 		exit(1);
 	}
 
+	/* get the number of clients from the first line of the file, then populate the DB*/
 	fscanf(clients_file, "%d\n", &nr_clients);
 	for (i = 0; i < nr_clients; i++) {
 		fgets(buffer, 256, clients_file);
@@ -308,11 +357,14 @@ int main (int argc, char **argv)
 			buffer[strlen(buffer) - 1] = '\0';
 		}
 
+		/* add a new user */
 		user_db.push_back(user());
 
+		/* save it's username */
 		user_db[i].username = (char *)malloc((strlen(buffer) + 1) * sizeof(char));
 		strcpy(user_db[i].username, buffer);
 
+		/* initialise all other data */
 		user_db[i].auth_token = NULL;
 		user_db[i].access_token = NULL;
 		user_db[i].renew_token = NULL;
@@ -325,11 +377,13 @@ int main (int argc, char **argv)
 	/* read available resources */
 	resources_file = fopen(argv[2], "r");
 
+	/* if the provided file does not exist */
 	if (!resources_file) {
 		printf("No resource file found: %s\n", argv[2]);
 		exit(1);
 	}
 
+	/* get the number of resources from the first line of the file, then populate the resources DB*/
 	fscanf(resources_file, "%d\n", &nr_resources);
 	for (i = 0; i < nr_resources; i++) {
 		fgets(buffer, 256, resources_file);
@@ -343,6 +397,7 @@ int main (int argc, char **argv)
 	/* open approvals file */
 	approvals_file = fopen(argv[3], "r");
 
+	/* if the provided file does not exist */
 	if (!approvals_file) {
 		printf("No approvals file found: %s\n", argv[3]);
 		exit(1);
