@@ -7,3 +7,4 @@ tema1/*xdr*
 tema1/*clnt*
 tema1/oauth.h
 tema1/.vscode/
+*.zip
