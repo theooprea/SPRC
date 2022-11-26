@@ -9,3 +9,7 @@ tema1/oauth.h
 tema1/.vscode/
 *.zip
 tema2/.venv
+__pycache__/
+*.pyo
+*.pyc
+
