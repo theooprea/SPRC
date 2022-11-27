@@ -22,4 +22,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     re_path(r'^api/countries/?', include('api.modules.countries.urls', namespace='countries')),
     re_path(r'^api/cities/?', include('api.modules.cities.urls', namespace='cities')),
+    re_path(r'^api/temperatures/?', include('api.modules.temperatures.urls', namespace='temperatures')),
 ]

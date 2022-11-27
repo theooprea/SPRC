@@ -1,3 +1,16 @@
 from django.db import models
+from ..cities.models import City
 
-# Create your models here.
+TIME_FORMAT = "%Y-%m-%d"
+
+class Temperature(models.Model):
+    valoare = models.FloatField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    id_oras = models.ForeignKey(City, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.id_oras.nume_oras + " - " + self.timestamp.strftime(TIME_FORMAT)
+
+    class Meta:
+        verbose_name_plural = "Temperatures"
+        unique_together = ('id_oras', 'timestamp',)
