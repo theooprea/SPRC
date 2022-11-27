@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 
 SECRET_KEY = os.environ.get("SECRET_KEY")
-
+APPEND_SLASH = False
 DEBUG = int(os.environ.get("DEBUG", default=0))
 
 # 'DJANGO_ALLOWED_HOSTS' should be a single string of hosts with a space between each.
@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'api.modules.countries',
+    'api.modules.cities',
+    'api.modules.temperatures',
     'rest_framework',
 ]
 
