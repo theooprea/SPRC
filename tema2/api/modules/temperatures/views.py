@@ -46,13 +46,12 @@ class TemperaturesView(APIView):
     
     def post(self, request):
         payload = {
-            "id_oras": request.data.get("id_oras", None),
+            "id_oras": request.data.get("idOras", None),
             "valoare": request.data.get("valoare", None),
             "timestamp": None,
         }
 
         serializer = TemperatureSerializer(data=payload)
-        print(serializer)
         if serializer.is_valid():
             serializer.save()
             return Response(data={"id": serializer.data.get("id", None)}, status=status.HTTP_201_CREATED)
@@ -118,3 +117,32 @@ class TemperaturesPerCountryView(APIView):
 
         serializer = TemperatureSerializer(temperatures, many=True)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+class TemperatureView(APIView):
+    def put(self, request, pk):
+        try:
+            temperature = Temperature.objects.get(pk=pk)
+            payload = {
+                "id": request.data.get("id", None),
+                "id_oras": request.data.get("idOras", None),
+                "valoare": request.data.get("valoare", None),
+                "timestamp": temperature.timestamp,
+            }
+
+            serializer = TemperatureSerializer(temperature, data=payload)
+            if serializer.is_valid():
+                temperature.delete()
+                serializer.save()
+                return Response(data={"id": serializer.data.get("id", None)}, status=status.HTTP_201_CREATED)
+            
+            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        try:
+            temperature = Temperature.objects.get(pk=pk)
+            temperature.delete()
+            return Response(status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

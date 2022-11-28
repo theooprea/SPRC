@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import City
 from .serializers import CitySerializer
+from ..temperatures.models import Temperature
     
 class CitiesView(APIView):
     def get(self, request):
@@ -50,6 +51,7 @@ class CityView(APIView):
             if serializer.is_valid():
                 city.delete()
                 serializer.save()
+                Temperature.objects.filter(id_oras=pk).update(id_oras=payload["id"])
                 return Response(serializer.data)
         
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

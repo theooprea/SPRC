@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Country
+from ..cities.models import City
 from .serializers import CountrySerializer
 from rest_framework import status
     
@@ -39,6 +40,7 @@ class CountryView(APIView):
             if serializer.is_valid():
                 country.delete()
                 serializer.save()
+                City.objects.filter(id_tara=pk).update(id_tara=payload["id"])
                 return Response(serializer.data)
         
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
