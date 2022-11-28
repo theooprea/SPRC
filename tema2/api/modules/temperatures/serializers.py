@@ -4,7 +4,7 @@ from .models import Temperature
 TIME_FORMAT = "%Y-%m-%d"
 
 class TemperatureSerializer(serializers.ModelSerializer):
-    timestamp = serializers.DateTimeField(format=TIME_FORMAT)
+    timestamp = serializers.DateTimeField(format=TIME_FORMAT, allow_null=True)
     class Meta:
         model = Temperature
         fields = ['id', 'valoare', 'timestamp', 'id_oras']
