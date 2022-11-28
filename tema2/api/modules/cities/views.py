@@ -39,6 +39,7 @@ class CityView(APIView):
         try:
             city = City.objects.get(pk=pk)
             payload = {
+                "id": request.data.get("id", None),
                 "id_tara": request.data.get("idTara", None),
                 "nume_oras": request.data.get("nume", None),
                 "latitudine": request.data.get("lat", None),
@@ -47,6 +48,7 @@ class CityView(APIView):
 
             serializer = CitySerializer(city, data=payload)
             if serializer.is_valid():
+                city.delete()
                 serializer.save()
                 return Response(serializer.data)
         

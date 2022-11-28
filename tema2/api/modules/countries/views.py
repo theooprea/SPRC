@@ -29,6 +29,7 @@ class CountryView(APIView):
         try:
             country = Country.objects.get(pk=pk)
             payload = {
+                "id": request.data.get("id", None),
                 "nume_tara": request.data.get("nume", None),
                 "latitudine": request.data.get("lat", None),
                 "longitudine": request.data.get("lon", None),
@@ -36,6 +37,7 @@ class CountryView(APIView):
 
             serializer = CountrySerializer(country, data=payload)
             if serializer.is_valid():
+                country.delete()
                 serializer.save()
                 return Response(serializer.data)
         
