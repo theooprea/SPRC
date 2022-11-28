@@ -9,7 +9,15 @@ class CountriesView(APIView):
     def get(self, request):
         countries = Country.objects.all()
         serializer = CountrySerializer(countries, many=True)
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        
+        response_data = [{
+            "id": country_data["id"],
+            "nume": country_data["nume_tara"],
+            "lat": country_data["latitudine"],
+            "lon": country_data["longitudine"],
+        } for country_data in serializer.data]
+        
+        return Response(data=response_data, status=status.HTTP_200_OK)
     
     def post(self, request):
         payload = {
@@ -53,4 +61,4 @@ class CountryView(APIView):
             country.delete()
             return Response(status=status.HTTP_200_OK)
         except Exception as e:
-            return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(data={"error": str(e)}, status=status.HTTP_404_NOT_FOUND)

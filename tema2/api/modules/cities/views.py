@@ -9,7 +9,16 @@ class CitiesView(APIView):
     def get(self, request):
         cities = City.objects.all()
         serializer = CitySerializer(cities, many=True)
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+        response_data = [{
+            "id": city_data["id"],
+            "idTara": city_data["id_tara"],
+            "nume": city_data["nume_oras"],
+            "lat": city_data["latitudine"],
+            "lon": city_data["longitudine"],
+        } for city_data in serializer.data]
+        
+        return Response(data=response_data, status=status.HTTP_200_OK)
     
     def post(self, request):
         payload = {
@@ -31,7 +40,16 @@ class CitiesPerCountryView(APIView):
         try:
             cities = City.objects.filter(id_tara=id_Tara)
             serializer = CitySerializer(cities, many=True)
-            return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+            response_data = [{
+                "id": city_data["id"],
+                "idTara": city_data["id_tara"],
+                "nume": city_data["nume_oras"],
+                "lat": city_data["latitudine"],
+                "lon": city_data["longitudine"],
+            } for city_data in serializer.data]
+            
+            return Response(data=response_data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -64,4 +82,4 @@ class CityView(APIView):
             city.delete()
             return Response(status=status.HTTP_200_OK)
         except Exception as e:
-            return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(data={"error": str(e)}, status=status.HTTP_404_NOT_FOUND)

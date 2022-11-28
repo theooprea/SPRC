@@ -133,7 +133,7 @@ class TemperatureView(APIView):
             if serializer.is_valid():
                 temperature.delete()
                 serializer.save()
-                return Response(data={"id": serializer.data.get("id", None)}, status=status.HTTP_201_CREATED)
+                return Response(data={"id": serializer.data.get("id", None)}, status=status.HTTP_200_OK)
             
             return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
@@ -145,4 +145,4 @@ class TemperatureView(APIView):
             temperature.delete()
             return Response(status=status.HTTP_200_OK)
         except Exception as e:
-            return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(data={"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
