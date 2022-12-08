@@ -37,12 +37,16 @@ class CountryView(APIView):
     def put(self, request, pk):
         try:
             country = Country.objects.get(pk=pk)
+            print(country)
             payload = {
                 "id": request.data.get("id", None),
                 "nume_tara": request.data.get("nume", None),
                 "latitudine": request.data.get("lat", None),
                 "longitudine": request.data.get("lon", None),
             }
+
+            if len(Country.objects.filter(pk=int(payload["id"]))) != 0 and payload["id"] != int(pk):
+                return Response({"error": "conflict"}, status=status.HTTP_409_CONFLICT)
 
             serializer = CountrySerializer(country, data=payload)
             if serializer.is_valid():

@@ -65,6 +65,9 @@ class CityView(APIView):
                 "longitudine": request.data.get("lon", None),
             }
 
+            if len(City.objects.filter(pk=int(payload["id"]))) != 0 and payload["id"] != int(pk):
+                return Response({"error": "conflict"}, status=status.HTTP_409_CONFLICT)
+
             serializer = CitySerializer(city, data=payload)
             if serializer.is_valid():
                 city.delete()

@@ -129,6 +129,9 @@ class TemperatureView(APIView):
                 "timestamp": temperature.timestamp,
             }
 
+            if len(Temperature.objects.filter(pk=int(payload["id"]))) != 0 and payload["id"] != int(pk):
+                return Response({"error": "conflict"}, status=status.HTTP_409_CONFLICT)
+
             serializer = TemperatureSerializer(temperature, data=payload)
             if serializer.is_valid():
                 temperature.delete()
