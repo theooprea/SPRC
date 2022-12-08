@@ -10,6 +10,9 @@ services:
       - ./api:/django-api/api
     depends_on:
       - db
+    networks:
+      - api_network
+    container_name: api
     env_file:
       - ./.env
 
@@ -23,6 +26,9 @@ services:
       - 5050:80
     depends_on:
       - db
+    networks:
+      - pgadmin_network
+    container_name: pgadmin
 
   db:
     image: postgres:13-alpine
@@ -34,6 +40,14 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=postgres
+    networks:
+      - api_network
+      - pgadmin_network
+    container_name: db
+
+networks:
+  api_network: {}
+  pgadmin_network: {}
 
 volumes:
   postgres_data: {}
