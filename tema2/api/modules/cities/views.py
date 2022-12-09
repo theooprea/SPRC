@@ -82,6 +82,8 @@ class CityView(APIView):
     def delete(self, request, pk):
         try:
             city = City.objects.get(pk=pk)
+            temperatures = Temperature.objects.filter(id_oras=city.id)
+            temperatures.delete()
             city.delete()
             return Response(status=status.HTTP_200_OK)
         except Exception as e:

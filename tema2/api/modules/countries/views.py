@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Country
 from ..cities.models import City
+from ..temperatures.models import Temperature
 from .serializers import CountrySerializer
 from rest_framework import status
     
@@ -62,6 +63,10 @@ class CountryView(APIView):
     def delete(self, request, pk):
         try:
             country = Country.objects.get(pk=pk)
+            cities = City.objects.filter(id_tara=country.id)
+            temperatures = Temperature.objects.filter(id_oras__in=cities.values_list("id", flat=True))
+            temperatures.delete()
+            cities.delete()
             country.delete()
             return Response(status=status.HTTP_200_OK)
         except Exception as e:
