@@ -16,11 +16,16 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, re_path, include
 
-app_name = 'countries'
+app_name = 'tema2'
 
+# The main app router, routes the requests to each view, the Country, City and Temperature Views
 urlpatterns = [
+    # Route to the admin views
     path('admin/', admin.site.urls),
+    # Route to the Country View
     re_path(r'^api/countries/?', include('api.modules.countries.urls', namespace='countries')),
+    # Route to the City View
     re_path(r'^api/cities/?', include('api.modules.cities.urls', namespace='cities')),
+    # Route to the Temperature View
     re_path(r'^api/temperatures/?', include('api.modules.temperatures.urls', namespace='temperatures')),
 ]
