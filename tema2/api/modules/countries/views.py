@@ -92,8 +92,8 @@ class CountryView(APIView):
             # In case of error, return the serializer error and 400 response code
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            # In case of error, return the error data and 400 response code
-            return Response(data={"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            # In case of not found, return the error data and 404 response code
+            return Response(data={"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
 
     def delete(self, request, pk):
         '''
