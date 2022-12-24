@@ -36,7 +36,7 @@ def on_message(client, userdata, message):
         if not isinstance(value, int) and not isinstance(value, float) and key != "timestamp":
             continue
 
-        measurement = location + "." + station + "." + key
+        measurement = station + "." + key
 
         entry = {}
         entry.update({'measurement': measurement})
