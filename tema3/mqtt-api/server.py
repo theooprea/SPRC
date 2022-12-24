@@ -56,7 +56,6 @@ def on_message(client, userdata, message):
     if len(db_data) != 0:
         global influxdb_client
         influxdb_client.write_points(db_data)
-        
 
 if __name__ == "__main__":
     global influxdb_client

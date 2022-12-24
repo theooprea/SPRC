@@ -39,14 +39,18 @@ services:
       - grafana_influx
   
   mqtt_grafana:
-    image: grafana/grafana:8.2.6
+    image: grafana/grafana:latest
     container_name: mqtt_grafana
     ports:
       - '80:3000'
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana:/etc/grafana/provisioning
     depends_on:
       - influxdb
+    environment:
+      GF_SECURITY_ADMIN_USER: asistent
+      GF_SECURITY_ADMIN_PASSWORD: grafanaSPRC2021
     networks:
       - grafana_influx
 
