@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
+  "id": 2,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -83,15 +83,28 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "custom.axisLabel",
+                "value": "Battery Level"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
-        "h": 8,
+        "h": 9,
         "w": 12,
         "x": 0,
         "y": 0
       },
-      "id": 3,
+      "id": 2,
       "options": {
         "legend": {
           "calcs": [],
@@ -106,6 +119,7 @@
       },
       "targets": [
         {
+          "alias": "$tag_station",
           "datasource": {
             "type": "influxdb",
             "uid": "P951FEA4DE68E13C5"
@@ -119,18 +133,21 @@
             },
             {
               "params": [
+                "station"
+              ],
+              "type": "tag"
+            },
+            {
+              "params": [
                 "null"
               ],
               "type": "fill"
             }
           ],
-          "key": "Q-ebc8b4a2-9e6b-40e7-9b33-af5a3331dd2c-1",
-          "measurement": "/.*/",
+          "measurement": "/.*\\.BAT/",
           "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT \"value\" FROM \"autogen\"./.*/ WHERE (\"location\" = 'UPB') AND $timeFilter",
-          "rawQuery": false,
-          "refId": "B",
+          "policy": "autogen",
+          "refId": "A",
           "resultFormat": "time_series",
           "select": [
             [
@@ -145,17 +162,10 @@
                 "type": "mean"
               }
             ]
-          ],
-          "tags": [
-            {
-              "key": "location",
-              "operator": "=",
-              "value": "UPB"
-            }
           ]
         }
       ],
-      "title": "Grafic Date",
+      "title": "Battery Graph",
       "type": "timeseries"
     },
     {
@@ -194,9 +204,9 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 8
+        "y": 9
       },
-      "id": 5,
+      "id": 4,
       "options": {
         "footer": {
           "fields": "",
@@ -210,17 +220,26 @@
       "pluginVersion": "9.3.2",
       "targets": [
         {
+          "alias": "$tag_station",
           "datasource": {
             "type": "influxdb",
             "uid": "P951FEA4DE68E13C5"
           },
-          "groupBy": [],
-          "hide": false,
-          "measurement": "/.*/",
+          "groupBy": [
+            {
+              "params": [
+                "station"
+              ],
+              "type": "tag"
+            }
+          ],
+          "measurement": "/.*\\.BAT/",
           "orderByTime": "ASC",
           "policy": "autogen",
-          "refId": "B",
-          "resultFormat": "time_series",
+          "query": "SELECT max(\"value\") FROM \"autogen\"./.*\\.BAT/ WHERE $timeFilter GROUP BY \"station\"",
+          "rawQuery": false,
+          "refId": "A",
+          "resultFormat": "table",
           "select": [
             [
               {
@@ -228,23 +247,95 @@
                   "value"
                 ],
                 "type": "field"
+              },
+              {
+                "params": [],
+                "type": "last"
+              },
+              {
+                "params": [
+                  "Current"
+                ],
+                "type": "alias"
+              }
+            ],
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "min"
+              },
+              {
+                "params": [
+                  "Min"
+                ],
+                "type": "alias"
+              }
+            ],
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "max"
+              },
+              {
+                "params": [
+                  "Max"
+                ],
+                "type": "alias"
+              }
+            ],
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              },
+              {
+                "params": [
+                  "Avg"
+                ],
+                "type": "alias"
               }
             ]
           ],
-          "tags": [
-            {
-              "key": "location",
-              "operator": "=",
-              "value": "UPB"
-            }
-          ]
+          "tags": []
         }
       ],
-      "title": "Table Data",
+      "title": "Battery Table",
       "transformations": [
         {
-          "id": "seriesToColumns",
+          "id": "joinByField",
           "options": {}
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "station",
+                "Max",
+                "Min",
+                "Avg",
+                "Current"
+              ]
+            }
+          }
         }
       ],
       "type": "table"
@@ -263,8 +354,8 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "UPB IoT Data",
-  "uid": "QBoXE7pVz",
-  "version": 6,
+  "title": "Battery Dashboard",
+  "uid": "26kw-StVz",
+  "version": 3,
   "weekStart": ""
 }
