@@ -3,8 +3,8 @@ version: '3.3'
 services:
   mqtt_api:
     build: .
-    command: bash -c 'while !</dev/tcp/influxdb/$INFLUXDB_PORT; do sleep 1; done; while !</dev/tcp/mqtt_broker/$MQTTBROKER_PORT; do sleep 1; done; python3 mqtt-api/server.py'
-    container_name: mqtt_api
+    image: mqtt_api
+    command: bash -c 'while ! nc -z influxdb 8086; do sleep 1; done; while ! nc -z mqtt_broker 1883; do sleep 1; done; python3 mqtt-api/server.py'
     depends_on:
       - mqtt_broker
       - influxdb
@@ -13,11 +13,11 @@ services:
     networks:
       - api_broker
       - api_influx
-    restart: always
+    volumes:
+      - ./logs:/mqtt-api/logs
   
   mqtt_broker:
     image: eclipse-mosquitto:2.0-openssl
-    container_name: mqtt_broker
     ports:
       - '1883:1883'
     volumes:
@@ -27,20 +27,20 @@ services:
 
   influxdb:
     image: influxdb:1.8
-    container_name: influxdb
     ports:
       - '8086:8086'
     volumes:
       - influxdb_data:/var/lib/influxdb
     environment:
       INFLUXDB_DB: influxdb_data_db
+      INFLUXDB_DATA_MAX_SERIES_PER_DATABASE: 0
+      INFLUXDB_COORDINATOR_MAX_SELECT_BUCKETS: 0
     networks:
       - api_influx
       - grafana_influx
   
   mqtt_grafana:
     image: grafana/grafana:latest
-    container_name: mqtt_grafana
     ports:
       - '80:3000'
     volumes:
