@@ -13,8 +13,6 @@ services:
     networks:
       - api_broker
       - api_influx
-    volumes:
-      - ./logs:/mqtt-api/logs
   
   mqtt_broker:
     image: eclipse-mosquitto:2.0-openssl
