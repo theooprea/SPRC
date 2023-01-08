@@ -42,7 +42,7 @@ fields and sends the data to the Database.
 
 The logs are visible using:
 ```
-docker service sprc3_mqtt_api logs
+docker service logs sprc3_mqtt_api
 ```
 
 ## Grafana
