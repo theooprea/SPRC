@@ -51,3 +51,11 @@ upon creating. The datasource was configured using a `.yml` file, and the dashbo
 were created in the GUI, and exported as JSON under grafana. The files are then
 mounted in the instance's `/etc/grafana/provisioning` file, which auto-loads the
 configs.
+
+## Final Disclaimers
+From time to time, the `./run.sh` command may fail, if that's the case, simply run
+```
+./down.sh
+docker system prune -a --volumes
+```
+and rerun `./run.sh`
